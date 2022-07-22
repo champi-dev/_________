@@ -20,7 +20,6 @@ function runTasks(tasks, cb) {
     runningJobs[taskKey] = false
   })
 
-
   let allTasksDone = reduceStatuses(statuses)
   const tasksInterval = setInterval(() => {
     if (allTasksDone) {
