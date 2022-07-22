@@ -11,87 +11,97 @@
 // E needs to wait for C and D to be done.
 // Implement an interface, let's call it runTasks to take care of this for us.
 
+function runTasks(tasks, cb) {
+  const statuses = {}
+  const runningJobs = {}
+  const tasksKeys = Object.keys(tasks)
+  tasksKeys.map(taskKey => {
+    statuses[taskKey] = false
+    runningJobs[taskKey] = false
+  })
 
-// FAILING
 
-var tasks = {
-    'a': {
-      job: function (finish) {
-        setTimeout(function () {
-          console.log('a done');
-          finish();
-        }, 500);
-      }
-    },
-    'b': {
-      job: function (finish) {
-        setTimeout(function () {
-          console.log('b done');
-          finish();
-        }, 200);
-      }
-    },
-    'c': {
-      job: function (finish) {
-        setTimeout(function () {
-          console.log('c done');
-          finish();
-        }, 200);
-      },
-      dependencies: ['a', 'b']
-    },
-    'd': {
-      job: function (finish) {
-        setTimeout(function () {
-          console.log('d done');
-          finish();
-        }, 100);
-      },
-      dependencies: []
-    },
-    'e': {
-      job: function (finish) {
-        setTimeout(function () {
-          console.log('e done');
-          finish();
-        }, 200);
-      },
-      dependencies: ['c', 'b']
+  let allTasksDone = reduceStatuses(statuses)
+  const tasksInterval = setInterval(() => {
+    if (allTasksDone) {
+      clearInterval(tasksInterval)
+      cb()
     }
+
+    Object.entries(tasks).map(crrTask => {
+      const crrTaskKey = crrTask[0]
+      const crrTaskValue = crrTask[1]
+      if ((!crrTaskValue.dependencies || !crrTaskValue.dependencies.length) && !statuses[crrTaskKey]) {
+        !runningJobs[crrTaskKey] && crrTaskValue.job(() => {
+          statuses[crrTaskKey] = true
+          allTasksDone = reduceStatuses(statuses)
+        })
+        runningJobs[crrTaskKey] = true
+        return
+      }
+
+      const depsDone = !statuses[crrTaskKey] && crrTaskValue.dependencies.map(crrDep => statuses[crrDep]).reduce((crr, acc) => crr && acc)
+      if (depsDone) {
+        !runningJobs[crrTaskKey] && crrTaskValue.job(() => {
+          statuses[crrTaskKey] = true
+          allTasksDone = reduceStatuses(statuses)
+        })
+        runningJobs[crrTaskKey] = true
+      }
+    })
+  }, 200)
+
+  function reduceStatuses(statusesToReduce) {
+    return Object.values(statusesToReduce).reduce((crr, acc) => crr && acc)
+  }
+}
+
+const tasks = {
+  'a': {
+    job: function (finish) {
+      setTimeout(function () {
+        console.log('a done');
+        finish();
+      }, 500);
+    }
+  },
+  'b': {
+    job: function (finish) {
+      setTimeout(function () {
+        console.log('b done');
+        finish();
+      }, 200);
+    }
+  },
+  'c': {
+    job: function (finish) {
+      setTimeout(function () {
+        console.log('c done');
+        finish();
+      }, 200);
+    },
+  },
+  'd': {
+    job: function (finish) {
+      setTimeout(function () {
+        console.log('d done');
+        finish();
+      }, 100);
+    },
+    dependencies: ['a', 'b']
+  },
+  'e': {
+    job: function (finish) {
+      setTimeout(function () {
+        console.log('e done');
+        finish();
+      }, 200);
+    },
+    dependencies: ['c', 'd']
+  }
 };
 
-function runTasks(tasks, cb) {
-    const tasksArr = Object.entries(tasks);
-    const taskStatus = {}
-    tasksArr.forEach((task) => {
-        taskStatus[task[0]] = false
-    })
-    
-    tasksArr.forEach((task) => {
-        if(!task[1].dependencies || !task[1].dependencies.length) {
-            task[1].job(() => {
-                taskStatus[task[0]] = true
-                
-                tasksArr.forEach((task) => {
-                    if (task[1].dependencies && task[1].dependencies.length) {
-                        let passed = true
-                        task[1].dependencies.forEach(dep => {
-                          passed = passed && taskStatus[dep]
-                        })
-                        
-                        passed && task[1].job(() => {
-                            taskStatus[task[0]] = true
-                        });
-                    }
-                })
-            })   
-        } 
-    })
-    
-    cb();
-}
- 
-runTasks(tasks, function () {
-console.log('all done');
+runTasks(tasks, () => {
+  console.log('all done');
 });
- 
+
